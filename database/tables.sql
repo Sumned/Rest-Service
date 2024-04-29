@@ -11,7 +11,6 @@ create table users
 (
     id                     BIGINT      NOT NULL UNIQUE AUTO_INCREMENT,
     email                  varchar(64) NOT NULL UNIQUE,
-    password               varchar(64) NOT NULL,
     first_name             varchar(32) NOT NULL,
     last_name              varchar(32) NOT NULL,
     phone_number           varchar(16),
