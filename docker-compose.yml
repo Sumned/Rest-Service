@@ -25,3 +25,10 @@ services:
       - 8080:8080
     links:
       - my_sql:db
+
+  redis:
+    image: redis:7.2.4-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass password
