@@ -15,7 +15,7 @@ create table users
     last_name              varchar(32) NOT NULL,
     phone_number           varchar(16),
     address                varchar(128),
-    birth_day              DATE        NOT NULL,
+    birth_date              DATE        NOT NULL,
     creating_date          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_modification_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     primary key (id),
