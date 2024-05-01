@@ -12,6 +12,8 @@ services:
       - ./data/mysql:/var/lib/mysql:cached
       - ./logs/mysql:/var/log/mysql:cached
       - ./config/mysql/conf-local:/etc/mysql/conf.d:cached
+      - ./database/user.sql:/docker-entrypoint-initdb.d/1.sql
+      - ./database/tables.sql:/docker-entrypoint-initdb.d/2.sql
     logging:
       driver: "json-file"
       options:
