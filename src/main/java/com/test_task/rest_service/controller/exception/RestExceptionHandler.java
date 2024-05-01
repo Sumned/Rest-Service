@@ -5,6 +5,7 @@ import com.test_task.rest_service.exceptions.CustomException;
 import com.test_task.rest_service.exceptions.UserException;
 import com.test_task.rest_service.exceptions.ValidationException;
 import com.test_task.rest_service.models.dto.ErrorDTO;
+import com.test_task.rest_service.models.dto.MultipleErrorDto;
 import com.test_task.rest_service.models.dto.PartialUpdateUserDTO;
 import com.test_task.rest_service.models.dto.UserDTO;
 import org.springframework.beans.TypeMismatchException;
@@ -18,8 +19,12 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @ControllerAdvice
 public class RestExceptionHandler extends ResponseEntityExceptionHandler {
@@ -27,14 +32,14 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
     private static final String BAD_DATE_DRAFT = "Date %s is incorrect";
 
     @ExceptionHandler(value = {UserException.class, ValidationException.class})
-    protected ResponseEntity<ErrorDTO> handleServiceExceptions(CustomException customException) {
+    protected ResponseEntity<ErrorDTO> handleServiceExceptions(CustomException customException, WebRequest request) {
         HttpStatus status;
         if (customException.getCode() == 0) {
             status = HttpStatus.NOT_FOUND;
         } else {
             status = HttpStatus.BAD_REQUEST;
         }
-        return ResponseEntity.status(status).body(new ErrorDTO(customException.getMessage()));
+        return ResponseEntity.status(status).body(new ErrorDTO(status.value(), getUri(request), customException.getMessage()));
     }
 
     @Override
@@ -43,7 +48,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         if (ex.getMessage() != null && ex.getMessage().contains(LOCAL_DATE)) {
             if (ex.getCause() instanceof InvalidFormatException) {
                 String badValue = ((InvalidFormatException) ex.getCause()).getValue().toString();
-                return handleExceptionInternal(ex, new ErrorDTO(String.format(BAD_DATE_DRAFT, badValue)),
+                return handleExceptionInternal(ex, new ErrorDTO(status.value(), getUri(request), String.format(BAD_DATE_DRAFT, badValue)),
                         headers, status, request);
             }
         }
@@ -56,9 +61,13 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         BindingResult bindingResult = ex.getBindingResult();
         String objName = bindingResult.getObjectName();
         if (UserDTO.class.getSimpleName().equalsIgnoreCase(objName) || PartialUpdateUserDTO.class.getSimpleName().equalsIgnoreCase(objName)) {
-            StringBuilder builder = new StringBuilder();
-            bindingResult.getAllErrors().forEach(e -> builder.append(builder.length() > 0 ? ", " + e.getDefaultMessage() : e.getDefaultMessage()));
-            return handleExceptionInternal(ex, new ErrorDTO(builder.toString()),
+            List<ErrorDTO> errors = new ArrayList<>();
+            bindingResult.getAllErrors().forEach(e -> errors.add(new ErrorDTO(status.value(), getUri(request), e.getDefaultMessage())));
+            if (errors.size() == 1) {
+                return handleExceptionInternal(ex, errors.get(0),
+                        headers, status, request);
+            }
+            return handleExceptionInternal(ex, new MultipleErrorDto(errors),
                     headers, status, request);
         }
         return super.handleMethodArgumentNotValid(ex, headers, status, request);
@@ -70,9 +79,15 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
             TypeMismatchException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         if (ex.getMessage() != null && ex.getMessage().contains(LOCAL_DATE) && ex.getValue() != null) {
             String badValue = ex.getValue().toString();
-            return handleExceptionInternal(ex, new ErrorDTO(String.format(BAD_DATE_DRAFT, badValue)),
+            return handleExceptionInternal(ex, new ErrorDTO(status.value(),
+                            getUri(request),
+                            String.format(BAD_DATE_DRAFT, badValue)),
                     headers, status, request);
         }
         return super.handleTypeMismatch(ex, headers, status, request);
+    }
+
+    private String getUri(WebRequest request) {
+        return ((ServletWebRequest) request).getRequest().getRequestURI();
     }
 }

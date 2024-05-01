@@ -32,9 +32,6 @@ public class IntegrationTests {
     private UserRepository userRepository;
 
     @Autowired
-    private UserService userService;
-
-    @Autowired
     private MockMvc mvc;
 
     @Autowired
@@ -51,12 +48,11 @@ public class IntegrationTests {
     @Test
     public void createController_Duplicate() throws Exception {
         postUser(createUser());
-        mvc.perform(post("/user")
+        mvc.perform(post("/users")
                         .content(createUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.detail").value(ErrorMessage.EMAIL_ALREADY_USED.getMessage()));
     }
 
@@ -68,12 +64,11 @@ public class IntegrationTests {
         user.put("birthDate", "1991-12-11");
         user.put("phoneNumber", "+380111111111");
         user.put("address", "address");
-        mvc.perform(post("/user")
+        mvc.perform(post("/users")
                         .content(user.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.detail").value("Last name is mandatory"));
     }
 
@@ -86,27 +81,25 @@ public class IntegrationTests {
         user.put("birthDate", LocalDate.now().minusYears(minimumAge - 1).toString());
         user.put("phoneNumber", "+380111111112");
         user.put("address", "Kyiv");
-        mvc.perform(post("/user")
+        mvc.perform(post("/users")
                         .content(user.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.detail").value(ErrorMessage.SMALL_AGE.getMessage()));
     }
 
     @Test
     public void getController() throws Exception {
         String context = postUser(createUser()).getResponse().getContentAsString();
-        JSONObject user = new JSONObject(context);
-        mvc.perform(get("/user/" + user.get("id")).accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk());
+        JSONObject user = new JSONObject(context).getJSONObject("data");
+        mvc.perform(get("/users/" + user.get("id")).accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk());
     }
 
     @Test
     public void getController_NotFound() throws Exception {
-        mvc.perform(get("/user/" + 1).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(get("/users/" + 1).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.detail").value(ErrorMessage.USER_NOT_EXIST.getMessage()));
     }
 
@@ -116,95 +109,90 @@ public class IntegrationTests {
         postUser(createUser(1)).getResponse().getContentAsString();
         postUser(createUser(2)).getResponse().getContentAsString();
         postUser(createUser(3)).getResponse().getContentAsString();
-        mvc.perform(get(String.format("/user?from=%s&to=%s",
+        mvc.perform(get(String.format("/users?from=%s&to=%s",
                         LocalDate.of(1991, 12, 9),
                         LocalDate.of(1991, 12, 12)))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.*", isA(ArrayList.class)))
-                .andExpect(jsonPath("$.*", hasSize(2)));
-        mvc.perform(get(String.format("/user?from=%s&to=%s",
+                .andExpect(jsonPath("$.data.*", isA(ArrayList.class)))
+                .andExpect(jsonPath("$.data.*", hasSize(2)));
+        mvc.perform(get(String.format("/users?from=%s&to=%s",
                         LocalDate.of(1991, 12, 9),
                         LocalDate.of(1991, 12, 14)))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.*", isA(ArrayList.class)))
-                .andExpect(jsonPath("$.*", hasSize(4)));
+                .andExpect(jsonPath("$.data.*", isA(ArrayList.class)))
+                .andExpect(jsonPath("$.data.*", hasSize(4)));
     }
 
     @Test
     public void getControllerWithRange_BadRange() throws Exception {
-        mvc.perform(get(String.format("/user?from=%s&to=%s",
+        mvc.perform(get(String.format("/users?from=%s&to=%s",
                         LocalDate.of(1991, 12, 12),
                         LocalDate.of(1991, 12, 9)))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.detail").value(ErrorMessage.INVALID_DATE.getMessage()));
     }
 
     @Test
     public void getControllerWithRange_MissedRange() throws Exception {
-        mvc.perform(get("/user")
+        mvc.perform(get("/users")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.detail").value("Required parameter 'from' is not present."));
-        mvc.perform(get("/user?from=2000-12-01")
+        mvc.perform(get("/users?from=2000-12-01")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.detail").value("Required parameter 'to' is not present."));
     }
 
     @Test
     public void getControllerWithRange_InvalidRange() throws Exception {
-        mvc.perform(get("/user?from=2000-13-01&to=2000-12-01")
+        mvc.perform(get("/users?from=2000-13-01&to=2000-12-01")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.detail").value("Date 2000-13-01 is incorrect"));
-        mvc.perform(get("/user?from=2000-12-01&to=2000-13-01")
+        mvc.perform(get("/users?from=2000-12-01&to=2000-13-01")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.detail").value("Date 2000-13-01 is incorrect"));
     }
 
     @Test
     public void UpdateController() throws Exception {
         String context = postUser(createUser()).getResponse().getContentAsString();
-        JSONObject user = new JSONObject(context);
+        JSONObject user = new JSONObject(context).getJSONObject("data");
         user.put("email", "test1@gmail.com");
         user.put("firstName", "firstName1");
         user.put("lastName", "lastName1");
         user.put("birthDate", "1991-12-12");
         user.put("phoneNumber", "+380111111112");
         user.put("address", "Kyiv");
-        mvc.perform(put("/user/" + user.get("id")).content(user.toString())
+        mvc.perform(put("/users/" + user.get("id")).content(user.toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk());
-        mvc.perform(get("/user/" + user.get("id")).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(get("/users/" + user.get("id")).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(user.get("email")))
-                .andExpect(jsonPath("$.firstName").value(user.get("firstName")))
-                .andExpect(jsonPath("$.lastName").value(user.get("lastName")))
-                .andExpect(jsonPath("$.birthDate").value(user.get("birthDate")))
-                .andExpect(jsonPath("$.phoneNumber").value(user.get("phoneNumber")))
-                .andExpect(jsonPath("$.address").value(user.get("address")));
+                .andExpect(jsonPath("$.data.email").value(user.get("email")))
+                .andExpect(jsonPath("$.data.firstName").value(user.get("firstName")))
+                .andExpect(jsonPath("$.data.lastName").value(user.get("lastName")))
+                .andExpect(jsonPath("$.data.birthDate").value(user.get("birthDate")))
+                .andExpect(jsonPath("$.data.phoneNumber").value(user.get("phoneNumber")))
+                .andExpect(jsonPath("$.data.address").value(user.get("address")));
     }
 
     @Test
     public void UpdateController_WrongId() throws Exception {
         String context = postUser(createUser()).getResponse().getContentAsString();
-        JSONObject user = new JSONObject(context);
+        JSONObject user = new JSONObject(context).getJSONObject("data");;
         user.put("email", "test1@gmail.com");
         user.put("firstName", "firstName1");
         user.put("lastName", "lastName1");
         user.put("birthDate", "1991-12-12");
         user.put("phoneNumber", "+380111111112");
         user.put("address", "Kyiv");
-        mvc.perform(put("/user/" + user.get("id") + 1).content(user.toString())
+        mvc.perform(put("/users/" + user.get("id") + 1).content(user.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
@@ -216,14 +204,14 @@ public class IntegrationTests {
     public void UpdateController_EmailDuplicate() throws Exception {
         String context = postUser(createUser()).getResponse().getContentAsString();
         postUser(createUser(2));
-        JSONObject user = new JSONObject(context);
+        JSONObject user = new JSONObject(context).getJSONObject("data");;
         user.put("email", "test2@gmail.com");
         user.put("firstName", "firstName1");
         user.put("lastName", "lastName1");
         user.put("birthDate", "1991-12-12");
         user.put("phoneNumber", "+380111111112");
         user.put("address", "Kyiv");
-        mvc.perform(put("/user/" + user.get("id")).content(user.toString())
+        mvc.perform(put("/users/" + user.get("id")).content(user.toString())
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Bad Request"))
@@ -234,30 +222,30 @@ public class IntegrationTests {
     @Test
     public void partialUpdateController() throws Exception {
         String context = postUser(createUser()).getResponse().getContentAsString();
-        JSONObject user = new JSONObject(context);
+        JSONObject user = new JSONObject(context).getJSONObject("data");;
         user.put("email", "test1@gmail.com");
         user.put("firstName", "firstName1");
         user.put("address", "Kyiv");
-        mvc.perform(patch("/user/" + user.get("id")).content(user.toString())
+        mvc.perform(patch("/users/" + user.get("id")).content(user.toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk());
-        mvc.perform(get("/user/" + user.get("id")).accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(user.get("email")))
-                .andExpect(jsonPath("$.firstName").value(user.get("firstName")))
-                .andExpect(jsonPath("$.lastName").value(user.get("lastName")))
-                .andExpect(jsonPath("$.birthDate").value(user.get("birthDate")))
-                .andExpect(jsonPath("$.phoneNumber").value(user.get("phoneNumber")))
-                .andExpect(jsonPath("$.address").value(user.get("address")));
+        mvc.perform(get("/users/" + user.get("id")).accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.email").value(user.get("email")))
+                .andExpect(jsonPath("$.data.firstName").value(user.get("firstName")))
+                .andExpect(jsonPath("$.data.lastName").value(user.get("lastName")))
+                .andExpect(jsonPath("$.data.birthDate").value(user.get("birthDate")))
+                .andExpect(jsonPath("$.data.phoneNumber").value(user.get("phoneNumber")))
+                .andExpect(jsonPath("$.data.address").value(user.get("address")));
     }
 
     @Test
     public void partialUpdateController_WrongId() throws Exception {
         String context = postUser(createUser()).getResponse().getContentAsString();
-        JSONObject user = new JSONObject(context);
+        JSONObject user = new JSONObject(context).getJSONObject("data");;
         user.put("email", "test1@gmail.com");
         user.put("firstName", "firstName1");
         user.put("address", "Kyiv");
-        mvc.perform(patch("/user/" + user.get("id") + 1).content(user.toString())
+        mvc.perform(patch("/users/" + user.get("id") + 1).content(user.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
@@ -269,11 +257,11 @@ public class IntegrationTests {
     public void partialUpdateController_EmailDuplicate() throws Exception {
         String context = postUser(createUser()).getResponse().getContentAsString();
         postUser(createUser(2));
-        JSONObject user = new JSONObject(context);
+        JSONObject user = new JSONObject(context).getJSONObject("data");;
         user.put("email", "test2@gmail.com");
         user.put("firstName", "firstName1");
         user.put("address", "Kyiv");
-        mvc.perform(patch("/user/" + user.get("id")).content(user.toString())
+        mvc.perform(patch("/users/" + user.get("id")).content(user.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
@@ -284,32 +272,32 @@ public class IntegrationTests {
     @Test
     public void deleteController() throws Exception {
         String context = postUser(createUser()).getResponse().getContentAsString();
-        JSONObject user = new JSONObject(context);
-        mvc.perform(delete("/user/" + user.get("id")).accept(MediaType.APPLICATION_JSON)).andExpect(status().isNoContent());
-        mvc.perform(delete("/user/" + user.get("id")).accept(MediaType.APPLICATION_JSON)).andExpect(status().isNotFound());
+        JSONObject user = new JSONObject(context).getJSONObject("data");;
+        mvc.perform(delete("/users/" + user.get("id")).accept(MediaType.APPLICATION_JSON)).andExpect(status().isNoContent());
+        mvc.perform(delete("/users/" + user.get("id")).accept(MediaType.APPLICATION_JSON)).andExpect(status().isNotFound());
     }
 
     @Test
     public void deleteController_NotFound() throws Exception {
-        mvc.perform(delete("/user/" + 1).accept(MediaType.APPLICATION_JSON)).andExpect(status().isNotFound());
+        mvc.perform(delete("/users/" + 1).accept(MediaType.APPLICATION_JSON)).andExpect(status().isNotFound());
     }
 
     @Test
     public void cacheChecking() throws Exception {
         String context = postUser(createUser()).getResponse().getContentAsString();
-        JSONObject user = new JSONObject(context);
-        mvc.perform(get("/user/" + user.get("id")).accept(MediaType.APPLICATION_JSON))
+        JSONObject user = new JSONObject(context).getJSONObject("data");;
+        mvc.perform(get("/users/" + user.get("id")).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
         userRepository.deleteById(Long.parseLong(user.get("id").toString()));
-        mvc.perform(get("/user/" + user.get("id")).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(get("/users/" + user.get("id")).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
         cacheManager.getCache("user").evict(user.get("id"));
-        mvc.perform(get("/user/" + user.get("id")).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(get("/users/" + user.get("id")).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
 
     private MvcResult postUser(String user) throws Exception {
-        return mvc.perform(post("/user")
+        return mvc.perform(post("/users")
                         .content(user)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
