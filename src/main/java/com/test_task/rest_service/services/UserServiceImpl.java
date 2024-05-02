@@ -59,11 +59,11 @@ public class UserServiceImpl implements UserService {
     public UserEntity partialUserUpdate(PartialUpdateUserDTO userDTO, Long userId) {
         UserEntity userEntity = userRepository.findById(userId).orElseThrow(() ->
                 new UserException(ErrorMessage.USER_NOT_EXIST));
-        validateAndUpdate(userDTO, userEntity);
+        update(userDTO, userEntity);
         return userRepository.save(userEntity);
     }
 
-    private void validateAndUpdate(PartialUpdateUserDTO userDTO, UserEntity userEntity) {
+    private void update(PartialUpdateUserDTO userDTO, UserEntity userEntity) {
         if (userDTO.getEmail() != null) {
             if (userRepository.existsByEmail(userDTO.getEmail())) {
                 throw new UserException(ErrorMessage.EMAIL_ALREADY_USED);
@@ -74,18 +74,11 @@ public class UserServiceImpl implements UserService {
             validationService.validateUserAge(userDTO.getBirthDate());
             userEntity.setBirthDate(userDTO.getBirthDate());
         }
-        if (userDTO.getFirstName() != null) {
-            userEntity.setFirstName(userDTO.getFirstName());
-        }
-        if (userDTO.getLastName() != null) {
-            userEntity.setLastName(userDTO.getLastName());
-        }
-        if (userDTO.getAddress() != null) {
-            userEntity.setAddress(userDTO.getAddress());
-        }
-        if (userDTO.getPhoneNumber() != null) {
-            userEntity.setPhoneNumber(userDTO.getPhoneNumber());
-        }
+
+        userDTO.getFirstName().ifPresent(userEntity::setFirstName);
+        userDTO.getLastName().ifPresent(userEntity::setLastName);
+        userDTO.getAddress().ifPresent(userEntity::setAddress);
+        userDTO.getPhoneNumber().ifPresent(userEntity::setPhoneNumber);
     }
 
     @Override

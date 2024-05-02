@@ -29,12 +29,12 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ResponseDTO> totalUserUpdate(@Valid @RequestBody UserDTO userDTO, @PathVariable(name = "id") Long userId) {
+    public ResponseEntity<ResponseDTO> updateUser(@Valid @RequestBody UserDTO userDTO, @PathVariable(name = "id") Long userId) {
         return ResponseEntity.ok(new ResponseDTO(userService.updateUser(userDTO, userId)));
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<ResponseDTO> partialUserUpdate(@Valid @RequestBody PartialUpdateUserDTO partialUpdateUserDTO,
+    public ResponseEntity<ResponseDTO> updateUser(@Valid @RequestBody PartialUpdateUserDTO partialUpdateUserDTO,
                                                          @PathVariable(name = "id") Long userId) {
         return ResponseEntity.ok(new ResponseDTO(userService.partialUserUpdate(partialUpdateUserDTO, userId)));
     }
